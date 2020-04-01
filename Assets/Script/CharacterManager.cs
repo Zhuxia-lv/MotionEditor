@@ -9,7 +9,7 @@ public class CharacterManager : MonoBehaviour {
 
     [SerializeField] JointList jointList;
     [SerializeField] RecordEditor recordEditor;
-    [SerializeField] Dropdown m_dropdown;
+    [SerializeField] Dropdown m_characterDropdown;
 
     private Selectable<Animator> selectable = new Selectable<Animator>();
     private GameObject character;
@@ -17,7 +17,7 @@ public class CharacterManager : MonoBehaviour {
 
     private void Awake() {
         SetDropdownItem();
-        m_dropdown.onValueChanged.AddListener(SetAnim);
+        m_characterDropdown.onValueChanged.AddListener(SetAnim);
     }
 
     private void Init() {
@@ -29,14 +29,14 @@ public class CharacterManager : MonoBehaviour {
         var files = new DirectoryInfo(directory).GetFiles("*.prefab");
         foreach (var item in files) {
             string filename = Path.GetFileNameWithoutExtension(item.ToString());
-            m_dropdown.options.Add(new Dropdown.OptionData { text = filename });
+            m_characterDropdown.options.Add(new Dropdown.OptionData { text = filename });
         }
     }
 
     private void SetAnim(int i) {
         Destroy(character);
         anim = null;
-        var @object = Resources.Load<GameObject>("Character/" + m_dropdown.options[i].text);
+        var @object = Resources.Load<GameObject>("Character/" + m_characterDropdown.options[i].text);
         if (@object != null) {
             character = Instantiate(@object, gameObject.transform);
             anim = character.GetComponent<Animator>();

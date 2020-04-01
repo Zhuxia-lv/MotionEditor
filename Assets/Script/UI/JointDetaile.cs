@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 
-public class JointDetaile : MonoBehaviour,IPointerDownHandler{
+public class JointDetaile : MonoBehaviour {
 
     [SerializeField] public GameObject joint;
     [SerializeField] Text m_text;
@@ -23,23 +23,11 @@ public class JointDetaile : MonoBehaviour,IPointerDownHandler{
         z_input.onEndEdit.AddListener(SetToJoint);
     }
 
-    void Update() {
+    private void Update() {
         selectable.SetValueIfNotEqual(joint.transform.localRotation);
     }
 
-    void UpdateJointData() {
-        if (m_text.text == "Hips_position") {
-            x_input.text = joint.transform.localPosition.x.ToString();
-            y_input.text = joint.transform.localPosition.y.ToString();
-            z_input.text = joint.transform.localPosition.z.ToString();
-        } else {
-            x_input.text = joint.transform.localRotation.x.ToString();
-            y_input.text = joint.transform.localRotation.y.ToString();
-            z_input.text = joint.transform.localRotation.z.ToString();
-        }
-    }
-
-    void SetToJoint(string str) {
+    public void SetToJoint(string str) {
         var q = new Vector3() {
             x = float.Parse(x_input.text),
             y = float.Parse(y_input.text),
@@ -52,21 +40,19 @@ public class JointDetaile : MonoBehaviour,IPointerDownHandler{
         }
     }
 
+    private void UpdateJointData() {
+        if (m_text.text == "Hips_position") {
+            x_input.text = joint.transform.localPosition.x.ToString();
+            y_input.text = joint.transform.localPosition.y.ToString();
+            z_input.text = joint.transform.localPosition.z.ToString();
+        } else {
+            x_input.text = joint.transform.localEulerAngles.x.ToString();
+            y_input.text = joint.transform.localEulerAngles.y.ToString();
+            z_input.text = joint.transform.localEulerAngles.z.ToString();
+        }
+    }
+
     private void OnDestroy() {
         selectable.Dispose();
-    }
-
-    private void Test() {
-        //EventSystem eventData = EventSystem.current;
-        //if (eventData. == x_input) {
-        //    Debug.Log("Press!");
-        //}
-    }
-
-    public void OnPointerDown(PointerEventData eventData) {
-        x_input.OnPointerDown(eventData);
-        {
-            Debug.Log("Press!");
-        }
     }
 }

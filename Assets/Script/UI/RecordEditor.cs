@@ -12,10 +12,8 @@ public class RecordEditor : MonoBehaviour {
 
     [SerializeField] int FPS = 30;
     [SerializeField] float lerpSpeed = 30;
-    [SerializeField] bool isPlay;
-    [SerializeField] bool repeat;
     [SerializeField] int currentFrame = 0;
-    [SerializeField] Dropdown m_dropdown;
+    [SerializeField] Dropdown m_mcpDropdown;
     [SerializeField] Text m_TotalFrame;
     [SerializeField] InputField m_CurrentFrame;
 
@@ -26,8 +24,12 @@ public class RecordEditor : MonoBehaviour {
     [SerializeField] Button m_NextButton;
     [SerializeField] Button m_BackButton;
     [SerializeField] Button m_RepeatButton;
-
+    [SerializeField] Button m_EditButton;
+    
     Selectable<int> selectable = new Selectable<int>();
+    private bool isPlay = false;
+    private bool isEdit = false;
+    private bool isRepeat = false;
     private Animator anim = null;
     private float timer = 0;
 
@@ -36,27 +38,36 @@ public class RecordEditor : MonoBehaviour {
     }
 
     private void Awake() {
-        m_dropdown.value = 0;
+        m_mcpDropdown.value = 0;
         SetDropdownItem();
         SetProperty(0);
         SetCallBack();
+        UpdateButton();
     }
 
     void SetCallBack() {
         selectable.m_Changed += currentFrame => UpdateFrame();
-        m_dropdown.onValueChanged.AddListener(SetProperty);
+        m_mcpDropdown.onValueChanged.AddListener(SetProperty);
         m_CurrentFrame.onEndEdit.AddListener(SetFrame);
         m_StartButton.onClick.AddListener(StartButton);
+        m_StartButton.onClick.AddListener(UpdateButton);
         m_StopButton.onClick.AddListener(StopButton);
+        m_StopButton.onClick.AddListener(UpdateButton);
         m_PauseButton.onClick.AddListener(PauseButton);
+        m_PauseButton.onClick.AddListener(UpdateButton);
         m_NextButton.onClick.AddListener(NextButton);
         m_BackButton.onClick.AddListener(BackButton);
         m_RepeatButton.onClick.AddListener(RepeatButton);
+        m_RepeatButton.onClick.AddListener(UpdateButton);
+        m_EditButton.onClick.AddListener(EditButton);
+        m_EditButton.onClick.AddListener(UpdateButton);
     }
 
     void Update() {
-        UpdateButton();
         UpdateCurrentFrame();
+        if (isEdit) {
+            SetToRecordProperty(anim);
+        }
     }
 
     private void UpdateCurrentFrame() {
@@ -72,7 +83,7 @@ public class RecordEditor : MonoBehaviour {
                     isPlay = false;
                 }
             }
-            if (repeat && currentFrame >= recordProperty.Count - 1) {
+            if (isRepeat && currentFrame >= recordProperty.Count - 1) {
                 currentFrame = 0;
             }
         } else if (recordProperty.Count > 0) {
@@ -84,17 +95,22 @@ public class RecordEditor : MonoBehaviour {
         if (anim == null) {
             Debug.Log("No Animator Component");
         } else {
-            SetRecordProperty(anim, recordProperty[currentFrame],isPlay);
+            SetFromRecordProperty(anim, recordProperty[currentFrame], isPlay);
         }
     }
 
     private void UpdateButton() {
         m_PauseButton.gameObject.SetActive(isPlay);
         m_StartButton.gameObject.SetActive(!isPlay);
-        if (repeat) {
+        if (isRepeat) {
             m_RepeatButton.image.color = Color.cyan;
         } else {
             m_RepeatButton.image.color = Color.white;
+        }
+        if (isEdit) {
+            m_EditButton.image.color = Color.red;
+        } else {
+            m_EditButton.image.color = Color.white;
         }
     }
 
@@ -110,13 +126,13 @@ public class RecordEditor : MonoBehaviour {
     private void SetDropdownItem() {
         var files = new DirectoryInfo(directory).GetFiles("*.mcp");
         foreach (var item in files) {
-            m_dropdown.options.Add(new Dropdown.OptionData { text = item.Name });
+            m_mcpDropdown.options.Add(new Dropdown.OptionData { text = item.Name });
         }
     }
 
     private void SetProperty(int i) {
         if (i != 0) {
-            recordProperty = (List<RecordProperty>)Util.Serializer.LoadFromBinaryFile(Path.Combine(directory, m_dropdown.options[i].text));
+            recordProperty = (List<RecordProperty>)Util.Serializer.LoadFromBinaryFile(Path.Combine(directory, m_mcpDropdown.options[i].text));
         } else {
             recordProperty.Clear();
         }
@@ -126,7 +142,7 @@ public class RecordEditor : MonoBehaviour {
         isPlay = false;
     }
 
-    private void SetRecordProperty(Animator anim, RecordProperty recordProperty, bool lerp = true) {
+    private void SetFromRecordProperty(Animator anim, RecordProperty recordProperty, bool lerp = true) {
         foreach (HumanBodyBones bone in Enum.GetValues(typeof(HumanBodyBones))) {
             if (bone < 0 || bone == HumanBodyBones.LastBone)
                 continue;
@@ -156,6 +172,29 @@ public class RecordEditor : MonoBehaviour {
         }
     }
 
+    public void SetToRecordProperty(Animator anim) {
+        foreach (HumanBodyBones bone in Enum.GetValues(typeof(HumanBodyBones))) {
+            if (bone < 0 || bone == HumanBodyBones.LastBone)
+                continue;
+            if (anim.GetBoneTransform(bone) != null) {
+                recordProperty[currentFrame].Joint[(int)bone, 0] = anim.GetBoneTransform(bone).localRotation.x;
+                recordProperty[currentFrame].Joint[(int)bone, 1] = anim.GetBoneTransform(bone).localRotation.y;
+                recordProperty[currentFrame].Joint[(int)bone, 2] = anim.GetBoneTransform(bone).localRotation.z;
+                recordProperty[currentFrame].Joint[(int)bone, 3] = anim.GetBoneTransform(bone).localRotation.w;
+
+                if (bone == HumanBodyBones.Hips) {
+                    recordProperty[currentFrame].Hips[0] = anim.GetBoneTransform(bone).localPosition.x;
+                    recordProperty[currentFrame].Hips[1] = anim.GetBoneTransform(bone).localPosition.y;
+                    recordProperty[currentFrame].Hips[2] = anim.GetBoneTransform(bone).localPosition.z;
+                }
+            }
+        }
+    }
+
+
+    //
+    //Button
+    //
     private void StartButton() {
         if (recordProperty.Count != 0) {
             isPlay = true;
@@ -163,6 +202,7 @@ public class RecordEditor : MonoBehaviour {
         if (currentFrame == recordProperty.Count - 1) {
             currentFrame = 0;
         }
+        isEdit = false;
     }
 
     private void StopButton() {
@@ -175,14 +215,29 @@ public class RecordEditor : MonoBehaviour {
     }
 
     private void NextButton() {
-        currentFrame = Mathf.Clamp(currentFrame + 1, 0, recordProperty.Count);
+        if (currentFrame + 1 >= recordProperty.Count) {
+            currentFrame = 0;
+        } else {
+            currentFrame += 1;
+        }
     }
 
     private void BackButton() {
-        currentFrame = Mathf.Clamp(currentFrame - 1, 0, recordProperty.Count);
+        if (currentFrame - 1 < 0) {
+            currentFrame = recordProperty.Count - 1;
+        } else {
+            currentFrame -= 1;
+        }
     }
 
     private void RepeatButton() {
-        repeat = !repeat;
+        isRepeat = !isRepeat;
+    }
+
+    private void EditButton() {
+        if (anim != null && recordProperty.Count > 0) {
+            isEdit = !isEdit;
+            isPlay = false;
+        }
     }
 }
